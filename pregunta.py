@@ -1,46 +1,67 @@
 """
-Laboratorio ingestion de datos textuales
+Limpieza de datos usando Pandas
 -----------------------------------------------------------------------------------------
 
-Realice la limpieza del dataframe. Los tests evaluan si la limpieza fue realizada 
+Realice la limpieza del dataframe. Los tests evaluan si la limpieza fue realizada
 correctamente. Tenga en cuenta datos faltantes y duplicados.
 
 """
-import os
-import csv
+from datetime import datetime
+
+import re
 import pandas as pd
 
-def crear_set_entrenamiento_testeo():
-    # Rutas de los directorios de las carpetas
-    paths = ["/train/", "/test/"]
-    # Nombres de los archivos de salida CSV para los datos
-    output_files = ["train_dataset.csv", "test_dataset.csv"]
-    # Categorías de sentimientos (negative, positive, neutral)
-    categories = ["negative", "positive", "neutral"]
-    # Itera sobre la enumeración de los nombres de archivos de salida
-    for index, file_name in enumerate(output_files):
-        # Abre el archivo CSV en modo de escritura y crea un escritor CSV
-        with open(file_name, "w", newline="") as csv_file:
-            csv_writer = csv.writer(csv_file)
-            # Escribe una fila de encabezado con los nombres de columna "phrase" y "sentiment"
-            csv_writer.writerow(["phrase", "sentiment"])
-                # Itera sobre cada categoría en las categorías de sentimientos
-        for category in categories:
-            # Construye la ruta completa al directorio de la categoría actual
-            folder_path = "data" + paths[index] + category
-            # Abre el archivo CSV en modo de adjuntar para agregar datos adicionales
-            with open(file_name, "a", newline="") as csv_file:
-                csv_writer = csv.writer(csv_file)
-                # Itera sobre cada archivo en el directorio de la categoría actual
-                for file in os.listdir(folder_path):
-                    # Verifica si el archivo tiene la extensión .txt
-                    if file.endswith(".txt"):
-                        # Construye la ruta completa al archivo de texto actual
-                        file_path = os.path.join(folder_path, file)
-                        # Abre el archivo de texto y lee su contenido
-                        with open(file_path, "r") as text_file:
-                            content = text_file.read()
-                            # Escribe una nueva fila en el archivo CSV con el contenido del archivo de texto y la categoría actual
-                            csv_writer.writerow([content, category])
 
-crear_set_entrenamiento_testeo()
+def clean_data():
+
+    resultado = pd.read_csv("solicitudes_credito.csv", sep=";", index_col=0)
+    resultado = resultado.copy()
+
+    resultado.dropna(inplace=True)  # eliminar filas vacias
+
+    resultado["sexo"] = resultado["sexo"].str.lower()
+
+    resultado["tipo_de_emprendimiento"] = resultado["tipo_de_emprendimiento"].str.lower()
+
+    resultado["idea_negocio"] = [
+        str.lower(idea.replace("_", " ").replace("-", " "))
+        for idea in resultado["idea_negocio"]
+    ]
+
+    resultado.barrio = [
+        str.lower(barrio).replace("_", " ").replace("-", " ") for barrio in resultado.barrio
+    ]
+
+    resultado["barrio"] = [
+        str.lower(barrio).replace("_", " ").replace("-", " ") for barrio in resultado["barrio"]
+    ]
+
+
+    resultado["comuna_ciudadano"] = resultado["comuna_ciudadano"].astype(int)
+
+    resultado["estrato"] = resultado["estrato"].astype(int)
+
+    resultado["línea_credito"] = [
+        fila.replace("-", " ").replace("_", " ").replace(". ", ".")
+        for fila in resultado["línea_credito"]
+    ]
+    resultado["línea_credito"] = resultado["línea_credito"].str.lower().str.strip() 
+
+    resultado["fecha_de_beneficio"] = [
+        (
+            datetime.strptime(date, "%d/%m/%Y")
+            if bool(re.search(r"\d{1,2}/\d{2}/\d{4}", date))
+            else datetime.strptime(date, "%Y/%m/%d")
+        )
+        for date in resultado["fecha_de_beneficio"]
+    ]
+
+    resultado["monto_del_credito"] = [
+        int(monto.replace("$ ", "").replace(".00", "").replace(",", ""))
+        for monto in resultado["monto_del_credito"]
+    ]
+    resultado["monto_del_credito"] = resultado["monto_del_credito"].astype(int)  ##
+    resultado.drop_duplicates(inplace=True)
+
+    return resultado
+
